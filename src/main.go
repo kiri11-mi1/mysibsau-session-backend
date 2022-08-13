@@ -28,5 +28,5 @@ func session(w http.ResponseWriter, r *http.Request) {
 func main() {
 	var router = mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/session", session).Methods("GET")
-	log.Fatal(http.ListenAndServe("127.0.0.1:8080", router))
+	log.Fatal(http.ListenAndServe("localhost:8080", router))
 }
