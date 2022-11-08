@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	"github.com/gorilla/mux"
 	"github.com/skilld-labs/go-odoo"
 	"log"
 	"mysibsau-session-backend/pallada"
@@ -12,28 +13,18 @@ import (
 
 var creds credentials
 
-type Group struct {
-	Id   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
 func session(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if recover() != nil {
 			http.Error(w, "Ошибка на стороне сервера", http.StatusInternalServerError)
 		}
 	}()
-	g := Group{Id: 4, Name: "РС18-01"}
-	err := json.NewEncoder(w).Encode(&g)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+	queryParams := mux.Vars(r)
+	groupName := queryParams["groupName"]
+	log.Print(groupName)
 
-func foo() {
-	// Авторизация под аккаунтом администратора
 	if err := env.Parse(&creds); err != nil {
-		log.Fatalln(err)
+		log.Print(err)
 	}
 	client, err := odoo.NewClient(&odoo.ClientConfig{
 		Admin:    creds.Admin,
@@ -44,15 +35,22 @@ func foo() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var id int64 = 11806
 	api := pallada.OdooAPI{Client: client}
-	fmt.Println(api.GetSessionByGroupID(id))
+	groupId, err := api.GetGroupIdByName(groupName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	sessionTimetable := api.GetSessionByGroupID(groupId)
+	err = json.NewEncoder(w).Encode(&sessionTimetable)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 
 }
 
 func main() {
-	foo()
-	//var router = mux.NewRouter().StrictSlash(true)
-	//router.HandleFunc("/session", session).Methods("GET")
-	//log.Fatal(http.ListenAndServe(":8080", router))
+	var router = mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/session/{groupName}", session).Methods("GET")
+	log.Print(http.ListenAndServe(":8080", router))
 }
