@@ -62,7 +62,7 @@ func (api *OdooAPI) GetCurrentYears(groupId int64) (int64, int64) {
 	return int64(begin), int64(end)
 }
 
-func (api *OdooAPI) GetSessionByGroupID(groupId int64) Exams {
+func (api *OdooAPI) GetSessionByGroupID(groupId int64) (Exams, error) {
 	exams := Exams{}
 	options := make(odoo.Options)
 	options["fields"] = []string{
@@ -84,7 +84,10 @@ func (api *OdooAPI) GetSessionByGroupID(groupId int64) Exams {
 			currentExams = append(currentExams, exam)
 		}
 	}
-	return currentExams
+	if len(currentExams) == 0 {
+		return Exams{}, errors.New("Not exams")
+	}
+	return currentExams, nil
 }
 
 func (api *OdooAPI) GetGroupIdByName(nameGroup string) (int64, error) {

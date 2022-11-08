@@ -41,7 +41,11 @@ func session(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	sessionTimetable := api.GetSessionByGroupID(groupId)
+	sessionTimetable, err := api.GetSessionByGroupID(groupId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	err = json.NewEncoder(w).Encode(&sessionTimetable)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
