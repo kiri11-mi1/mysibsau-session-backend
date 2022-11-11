@@ -48,13 +48,13 @@ func (exams *Exams) SortingByDate() Exams {
 }
 
 func (exams *Exams) ConvertDayWeek() {
-	for _, e := range *exams {
-		e.DayWeek = daysWeek[e.DayWeek]
+	for i, e := range *exams {
+		(*exams)[i].DayWeek = daysWeek[e.DayWeek]
 	}
 }
 
 func (exams *Exams) MakeValidTime() {
-	for _, e := range *exams {
-		e.Time = strings.Replace(e.Time, "-", "", -1)
+	for i, e := range *exams {
+		(*exams)[i].Time = strings.Replace(e.Time, "-", "", -1)
 	}
 }
