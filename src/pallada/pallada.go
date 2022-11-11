@@ -18,18 +18,15 @@ type SessionInfo struct {
 	CurrentYears string        `xmlrpc:"cur_year_header"`
 }
 
-type SessionsInfo []SessionInfo
-
 type Exam struct {
-	Year          int64         `xmlrpc:"year" json:"-"`
-	ProfessorName string        `xmlrpc:"employee_name_init" json:"professor_name"`
-	Subject       []interface{} `xmlrpc:"lesson" json:"subject"`
-	Room          string        `xmlrpc:"place" json:"room"`
-	DayWeek       string        `xmlrpc:"day_week" json:"day_week"`
-	Time          string        `xmlrpc:"time" json:"time"`
-	Date          string        `xmlrpc:"date" json:"date"`
+	Year      int64         `xmlrpc:"year" json:"-"`
+	Professor string        `xmlrpc:"employee_name_init" json:"professor"`
+	Subject   []interface{} `xmlrpc:"lesson" json:"subject"`
+	Room      string        `xmlrpc:"place" json:"room"`
+	DayWeek   string        `xmlrpc:"day_week" json:"day_week"`
+	Time      string        `xmlrpc:"time" json:"time"`
+	Date      string        `xmlrpc:"date" json:"date"`
 }
-type Exams []Exam
 
 type Group struct {
 	Name string `xmlrpc:"name"`
@@ -40,7 +37,7 @@ type Groups []Group
 func (api *OdooAPI) GetAllSessionsIds(groupId int64) []interface{} {
 	options := make(odoo.Options)
 	options["fields"] = []string{"session_ids"}
-	sessionsInfo := SessionsInfo{}
+	sessionsInfo := []SessionInfo{}
 	err := api.Client.Read("info.groups", []int64{groupId}, &options, &sessionsInfo)
 	if err != nil {
 		log.Fatal(err)
@@ -51,7 +48,7 @@ func (api *OdooAPI) GetAllSessionsIds(groupId int64) []interface{} {
 func (api *OdooAPI) GetCurrentYears(groupId int64) (int64, int64) {
 	options := make(odoo.Options)
 	options["fields"] = []string{"cur_year_header"}
-	sessionsInfo := SessionsInfo{}
+	sessionsInfo := []SessionInfo{}
 	err := api.Client.Read("info.groups", []int64{groupId}, &options, &sessionsInfo)
 	if err != nil {
 		log.Fatal(err)
@@ -62,8 +59,8 @@ func (api *OdooAPI) GetCurrentYears(groupId int64) (int64, int64) {
 	return int64(begin), int64(end)
 }
 
-func (api *OdooAPI) GetSessionByGroupID(groupId int64) (Exams, error) {
-	exams := Exams{}
+func (api *OdooAPI) GetSessionByGroupID(groupId int64) ([]Exam, error) {
+	exams := []Exam{}
 	options := make(odoo.Options)
 	options["fields"] = []string{
 		"year", "group", "employee_name_init", "lesson", "place", "day_week", "time", "date",
@@ -78,14 +75,14 @@ func (api *OdooAPI) GetSessionByGroupID(groupId int64) (Exams, error) {
 		log.Fatal(err)
 	}
 	curYearStart, curYearFinish := api.GetCurrentYears(groupId)
-	currentExams := Exams{}
+	currentExams := []Exam{}
 	for _, exam := range exams {
 		if exam.Year >= curYearStart && exam.Year <= curYearFinish {
 			currentExams = append(currentExams, exam)
 		}
 	}
 	if len(currentExams) == 0 {
-		return Exams{}, errors.New("Not exams")
+		return []Exam{}, errors.New("Not exams")
 	}
 	return currentExams, nil
 }
@@ -93,7 +90,7 @@ func (api *OdooAPI) GetSessionByGroupID(groupId int64) (Exams, error) {
 func (api *OdooAPI) GetGroupIdByName(nameGroup string) (int64, error) {
 	options := make(odoo.Options)
 	options["fields"] = []string{
-		"name", "institute_id", "id",
+		"name", "id",
 	}
 	var criteries = odoo.Criteria{{"name", "=", nameGroup}}
 	groups := Groups{}
