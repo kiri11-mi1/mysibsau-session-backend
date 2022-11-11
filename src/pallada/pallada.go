@@ -8,29 +8,38 @@ import (
 	"strings"
 )
 
-func (api *OdooAPI) GetAllSessionsIds(groupId int64) []interface{} {
+func (api *OdooAPI) GetAllSessionsIds(groupId int64) ([]int64, error) {
 	options := make(odoo.Options)
 	options["fields"] = []string{"session_ids"}
-	sessionsInfo := []SessionInfo{}
-	err := api.Client.Read("info.groups", []int64{groupId}, &options, &sessionsInfo)
+	gia := GroupInfoArray{}
+	err := api.Client.Read("info.groups", []int64{groupId}, &options, &gia)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return sessionsInfo[0].SessionsIds
+	if len(gia) == 0 {
+		return []int64{}, errors.New("no sessions for this group")
+	}
+	return gia[0].ConvertIdsToInt(), nil
 }
 
-func (api *OdooAPI) GetCurrentYears(groupId int64) (int64, int64) {
+func (api *OdooAPI) GetCurrentYears(groupId int64) (int64, int64, error) {
 	options := make(odoo.Options)
 	options["fields"] = []string{"cur_year_header"}
-	sessionsInfo := []SessionInfo{}
-	err := api.Client.Read("info.groups", []int64{groupId}, &options, &sessionsInfo)
+	gia := GroupInfoArray{}
+	err := api.Client.Read("info.groups", []int64{groupId}, &options, &gia)
 	if err != nil {
 		log.Fatal(err)
 	}
-	curYearsString := strings.Split(sessionsInfo[0].CurrentYears, " - ")
+	if len(gia) == 0 {
+		return -1, -1, errors.New("no sessions for this group")
+	}
+	if len(gia[0].CurrentYears) == 0 {
+		return -1, -1, errors.New("not current years")
+	}
+	curYearsString := strings.Split(gia[0].CurrentYears, " - ")
 	begin, _ := strconv.Atoi(curYearsString[0])
 	end, _ := strconv.Atoi(curYearsString[1])
-	return int64(begin), int64(end)
+	return int64(begin), int64(end), nil
 }
 
 func (api *OdooAPI) GetSessionByGroupID(groupId int64) ([]Exam, error) {
@@ -39,16 +48,18 @@ func (api *OdooAPI) GetSessionByGroupID(groupId int64) ([]Exam, error) {
 	options["fields"] = []string{
 		"year", "group", "employee_name_init", "lesson", "place", "day_week", "time", "date",
 	}
-	newSessionsIds := make([]int64, 1)
-	for _, sessionId := range api.GetAllSessionsIds(groupId) {
-		newSessionsIds = append(newSessionsIds, sessionId.(int64))
+	sessionIds, err := api.GetAllSessionsIds(groupId)
+	if err != nil {
+		return Exams{}, errors.New("Not exams")
 	}
-
-	err := api.Client.Read("info.timetable", newSessionsIds, &options, &exams)
+	err = api.Client.Read("info.timetable", sessionIds, &options, &exams)
 	if err != nil {
 		log.Fatal(err)
 	}
-	curYearStart, curYearFinish := api.GetCurrentYears(groupId)
+	curYearStart, curYearFinish, err := api.GetCurrentYears(groupId)
+	if err != nil {
+		return Exams{}, errors.New("Not exams")
+	}
 	currentExams := Exams{}
 	for _, exam := range exams {
 		if exam.Year >= curYearStart && exam.Year <= curYearFinish {
@@ -56,7 +67,7 @@ func (api *OdooAPI) GetSessionByGroupID(groupId int64) ([]Exam, error) {
 		}
 	}
 	if len(currentExams) == 0 {
-		return []Exam{}, errors.New("Not exams")
+		return Exams{}, errors.New("Not exams")
 	}
 	currentExams.ConvertDayWeek()
 	currentExams.MakeValidTime()
