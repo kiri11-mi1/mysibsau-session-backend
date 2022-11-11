@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/skilld-labs/go-odoo"
 	"log"
+	"mysibsau-session-backend/constants"
 	"mysibsau-session-backend/pallada"
 	"net/http"
 )
@@ -38,12 +39,14 @@ func session(w http.ResponseWriter, r *http.Request) {
 	api := pallada.OdooAPI{Client: client}
 	groupId, err := api.GetGroupIdByName(groupName)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		resp, _ := json.Marshal(constants.GROUP_NOT_FOUND)
+		http.Error(w, string(resp), http.StatusBadRequest)
 		return
 	}
 	sessionTimetable, err := api.GetSessionByGroupID(groupId)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		resp, _ := json.Marshal(constants.SESSION_NOT_FOUND)
+		http.Error(w, string(resp), http.StatusBadRequest)
 		return
 	}
 	err = json.NewEncoder(w).Encode(&sessionTimetable)
