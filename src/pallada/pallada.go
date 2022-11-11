@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+type OdooAPI struct {
+	Client *odoo.Client
+}
+
 func (api *OdooAPI) GetAllSessionsIds(groupId int64) ([]int64, error) {
 	options := make(odoo.Options)
 	options["fields"] = []string{"session_ids"}
