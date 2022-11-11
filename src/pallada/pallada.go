@@ -8,32 +8,6 @@ import (
 	"strings"
 )
 
-type OdooAPI struct {
-	Client *odoo.Client
-}
-
-type SessionInfo struct {
-	Id           int64         `xmlrpc:"id"`
-	SessionsIds  []interface{} `xmlrpc:"session_ids"`
-	CurrentYears string        `xmlrpc:"cur_year_header"`
-}
-
-type Exam struct {
-	Year      int64         `xmlrpc:"year" json:"-"`
-	Professor string        `xmlrpc:"employee_name_init" json:"professor"`
-	Subject   []interface{} `xmlrpc:"lesson" json:"subject"`
-	Room      string        `xmlrpc:"place" json:"room"`
-	DayWeek   string        `xmlrpc:"day_week" json:"day_week"`
-	Time      string        `xmlrpc:"time" json:"time"`
-	Date      string        `xmlrpc:"date" json:"date"`
-}
-
-type Group struct {
-	Name string `xmlrpc:"name"`
-	Id   int64  `xmlrpc:"id"`
-}
-type Groups []Group
-
 func (api *OdooAPI) GetAllSessionsIds(groupId int64) []interface{} {
 	options := make(odoo.Options)
 	options["fields"] = []string{"session_ids"}
@@ -60,7 +34,7 @@ func (api *OdooAPI) GetCurrentYears(groupId int64) (int64, int64) {
 }
 
 func (api *OdooAPI) GetSessionByGroupID(groupId int64) ([]Exam, error) {
-	exams := []Exam{}
+	exams := Exams{}
 	options := make(odoo.Options)
 	options["fields"] = []string{
 		"year", "group", "employee_name_init", "lesson", "place", "day_week", "time", "date",
@@ -75,7 +49,7 @@ func (api *OdooAPI) GetSessionByGroupID(groupId int64) ([]Exam, error) {
 		log.Fatal(err)
 	}
 	curYearStart, curYearFinish := api.GetCurrentYears(groupId)
-	currentExams := []Exam{}
+	currentExams := Exams{}
 	for _, exam := range exams {
 		if exam.Year >= curYearStart && exam.Year <= curYearFinish {
 			currentExams = append(currentExams, exam)
@@ -84,16 +58,19 @@ func (api *OdooAPI) GetSessionByGroupID(groupId int64) ([]Exam, error) {
 	if len(currentExams) == 0 {
 		return []Exam{}, errors.New("Not exams")
 	}
-	return currentExams, nil
+	currentExams.ConvertDayWeek()
+	currentExams.MakeValidTime()
+	return currentExams.SortingByDate(), nil
 }
 
 func (api *OdooAPI) GetGroupIdByName(nameGroup string) (int64, error) {
+	nameGroup = strings.ToUpper(nameGroup)
 	options := make(odoo.Options)
 	options["fields"] = []string{
 		"name", "id",
 	}
 	var criteries = odoo.Criteria{{"name", "=", nameGroup}}
-	groups := Groups{}
+	groups := []Group{}
 	err := api.Client.SearchRead("info.groups", &criteries, &options, &groups)
 	if err != nil {
 		log.Fatal(err)
